@@ -2,11 +2,11 @@
 resolver = "2"
 members = [
     "rand_jitterentropy",
-    "jitterentropy-sys"
+    "libjitterentropy-sys"
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Markus Theil <theil.markus@gmail.com>"]
 edition = "2024"
 

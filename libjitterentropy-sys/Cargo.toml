@@ -1,5 +1,5 @@
 [package]
-name = "jitterentropy-sys"
+name = "libjitterentropy-sys"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
