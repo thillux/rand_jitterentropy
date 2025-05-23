@@ -1,0 +1,14 @@
+[package]
+name = "jitterentropy-sys"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license = "MIT"
+repository = "https://github.com/thillux/rand_jitterentropy"
+description = "provides interface to jitterentropy-library (ffi-bindings)"
+keywords = ["rand", "random", "jitterentropy", "rng"]
+categories = ["external-ffi-bindings"]
+
+[build-dependencies]
+bindgen = { version = "0.71.1", features = ["runtime"] }
+pkg-config = "0.3.32"

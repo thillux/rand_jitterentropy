@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "rand_jitterentropy",
+    "jitterentropy-sys"
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Markus Theil <theil.markus@gmail.com>"]
+edition = "2024"
+
+[workspace.dependencies]
+jitterentropy-sys = { path = "jitterentropy-sys" }
+rand_core = "0.9.3"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = 0 }
+pedantic = { level = "deny", priority = 0 }
+cargo = { level = "deny", priority = 0 }

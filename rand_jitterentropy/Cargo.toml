@@ -1,0 +1,17 @@
+[package]
+name = "rand_jitterentropy"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license = "MIT"
+repository = "https://github.com/thillux/rand_jitterentropy"
+description = "provides rand implementation for jitterentropy-library in Rust"
+keywords = ["rand", "random", "jitterentropy", "rng"]
+categories = ["cryptography"]
+
+[dependencies]
+jitterentropy-sys = { workspace = true }
+rand_core = { workspace = true }
+
+[lints]
+workspace = true

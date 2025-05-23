@@ -1,0 +1,1 @@
+Provides adapter for `jitterentropy-sys` to `rand_core` crate.
