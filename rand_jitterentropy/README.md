@@ -1,1 +1,1 @@
-Provides adapter for `jitterentropy-sys` to `rand_core` crate.
+Provides adapter for `libjitterentropy-sys` to `rand_core` crate.
