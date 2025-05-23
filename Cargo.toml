@@ -1,17 +1,18 @@
 [workspace]
 resolver = "2"
 members = [
+    "linux-crng-ioctl",
     "rand_jitterentropy",
     "libjitterentropy-sys"
 ]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Markus Theil <theil.markus@gmail.com>"]
 edition = "2024"
 
 [workspace.dependencies]
-libjitterentropy-sys = { path = "libjitterentropy-sys", version = "0.1.2" }
+libjitterentropy-sys = { path = "libjitterentropy-sys", version = "0.1.3" }
 rand_core = "0.9.3"
 
 [workspace.lints.clippy]

@@ -35,8 +35,9 @@ impl RandJitterEntropy {
             return Err(std::io::Error::other("unable to init jitterentropy!"));
         }
 
-        let rand_data =
-            unsafe { libjitterentropy_sys::jitterentropy::jent_entropy_collector_alloc(osr, flags) };
+        let rand_data = unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_alloc(osr, flags)
+        };
         if rand_data.is_null() {
             Err(std::io::Error::other(
                 "unable to allocate jitterentropy state!",
