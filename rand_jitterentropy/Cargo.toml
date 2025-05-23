@@ -10,7 +10,7 @@ keywords = ["rand", "random", "jitterentropy", "rng"]
 categories = ["cryptography"]
 
 [dependencies]
-jitterentropy-sys = { workspace = true }
+libjitterentropy-sys = { workspace = true }
 rand_core = { workspace = true }
 
 [lints]

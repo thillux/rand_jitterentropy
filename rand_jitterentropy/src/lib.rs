@@ -4,7 +4,7 @@ use std::sync::Mutex;
 static LIB_MUTEX_UNPRIV: Mutex<u32> = Mutex::new(0u32);
 
 pub struct RandJitterEntropy {
-    rand_data: *mut jitterentropy_sys::jitterentropy::rand_data,
+    rand_data: *mut libjitterentropy_sys::jitterentropy::rand_data,
 }
 
 impl RandJitterEntropy {
@@ -21,10 +21,10 @@ impl RandJitterEntropy {
 
         let osr: std::os::raw::c_uint = 1;
         // enable all health tests
-        let flags: std::os::raw::c_uint = jitterentropy_sys::jitterentropy::JENT_FORCE_FIPS;
+        let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS;
 
         let ret = if *guard == 0 {
-            unsafe { jitterentropy_sys::jitterentropy::jent_entropy_init_ex(osr, flags) == 0 }
+            unsafe { libjitterentropy_sys::jitterentropy::jent_entropy_init_ex(osr, flags) == 0 }
         } else {
             true
         };
@@ -36,7 +36,7 @@ impl RandJitterEntropy {
         }
 
         let rand_data =
-            unsafe { jitterentropy_sys::jitterentropy::jent_entropy_collector_alloc(osr, flags) };
+            unsafe { libjitterentropy_sys::jitterentropy::jent_entropy_collector_alloc(osr, flags) };
         if rand_data.is_null() {
             Err(std::io::Error::other(
                 "unable to allocate jitterentropy state!",
@@ -64,7 +64,7 @@ impl TryRngCore for RandJitterEntropy {
 
     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
         let ret = unsafe {
-            jitterentropy_sys::jitterentropy::jent_read_entropy_safe(
+            libjitterentropy_sys::jitterentropy::jent_read_entropy_safe(
                 &mut self.rand_data,
                 dst.as_mut_ptr().cast(),
                 dst.len(),
@@ -94,7 +94,7 @@ impl Default for RandJitterEntropy {
 impl Drop for RandJitterEntropy {
     fn drop(&mut self) {
         unsafe {
-            jitterentropy_sys::jitterentropy::jent_entropy_collector_free(self.rand_data);
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_free(self.rand_data);
         }
 
         let mut guard = LIB_MUTEX_UNPRIV.lock().unwrap();

@@ -6,12 +6,12 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Markus Theil <theil.markus@gmail.com>"]
 edition = "2024"
 
 [workspace.dependencies]
-jitterentropy-sys = { path = "jitterentropy-sys" }
+libjitterentropy-sys = { path = "libjitterentropy-sys", version = "0.1.2" }
 rand_core = "0.9.3"
 
 [workspace.lints.clippy]
