@@ -65,9 +65,30 @@ ioctl_none!(rnd_zap_ent_cnt, IOC_MAGIC, RNDZAPENTCNT);
 ioctl_none!(rnd_clear_pool, IOC_MAGIC, RNDCLEARPOOL);
 ioctl_none!(rnd_reseed_crng, IOC_MAGIC, RNDRESEEDCRNG);
 
+/// Gets the current entropy count from the kernel's random number generator.
+///
+/// This function reads the entropy count from `/dev/random`, which represents
+/// the amount of entropy (in bits) that the kernel estimates is contained in
+/// the entropy pool.
+///
+/// # Returns
+/// - `Ok(i32)` - The current entropy count in bits
+/// - `Err` - If there's an error accessing the kernel or no file descriptors are available
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if the ioctl call to get entropy count fails
+/// - Returns error if no more file descriptors are available
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// let entropy_count = get_ent_cnt()?;
+/// println!("Current entropy count: {} bits", entropy_count);
+/// # Ok(())
+/// # }
+/// ```
 pub fn get_ent_cnt() -> Result<i32> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -82,9 +103,35 @@ pub fn get_ent_cnt() -> Result<i32> {
     }
 }
 
+/// Adds to (or subtracts from) the kernel's entropy count estimation.
+///
+/// This function allows superusers to modify the kernel's entropy estimation.
+/// Use with caution as incorrect entropy estimation can impact system security.
+///
+/// # Arguments
+/// * `ent_cnt` - The number of bits to add (positive) or subtract (negative) from the entropy count
+///
+/// # Returns
+/// - `Ok(())` - If the operation was successful
+/// - `Err` - If there's an error accessing the kernel or insufficient permissions
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if not running with root privileges
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if the ioctl call to modify entropy count fails
+/// - Returns error if no more file descriptors are available
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// add_to_ent_cnt(32)?; // Add 32 bits to entropy count
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Security
+/// Requires root privileges to execute successfully.
 pub fn add_to_ent_cnt(ent_cnt: i32) -> Result<()> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -98,9 +145,40 @@ pub fn add_to_ent_cnt(ent_cnt: i32) -> Result<()> {
     }
 }
 
+/// Adds random data to the kernel's entropy pool.
+///
+/// This function allows adding entropy to the kernel's random number generator.
+/// The entropy estimation must not exceed the actual entropy of the input data.
+///
+/// # Arguments
+/// * `entropy` - Byte slice containing the random data to add
+/// * `ent_bits` - Number of bits of entropy claimed to be in the data
+///
+/// # Returns
+/// - `Ok(())` - If the entropy was successfully added
+/// - `Err` - If there's an error accessing the kernel or insufficient permissions
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if not running with root privileges
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if `ent_bits` claims more entropy than possible (`buffer_length` * 8)
+/// - Returns error if buffer size exceeds `MAX_BUFFER_SIZE` (2048 bytes)
+/// - Returns error if the ioctl call to add entropy fails
+/// - Returns error if integer conversion fails for buffer size or entropy bits
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// let random_data = [0u8; 64];
+/// add_randomness_to_kernel(&random_data, 256)?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Security
+/// - Requires root privileges
+/// - Be careful not to overestimate entropy to maintain system security
 pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -145,9 +223,24 @@ pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
     }
 }
 
+/// Clears the kernel's entropy count to zero.
+///
+/// This function resets the kernel's entropy estimation without affecting
+/// the actual entropy pool contents.
+///
+/// # Returns
+/// - `Ok(())` - If the entropy count was successfully cleared
+/// - `Err` - If there's an error accessing the kernel or insufficient permissions
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if not running with root privileges
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if the ioctl call to clear entropy count fails
+/// - Returns error if no more file descriptors are available
+///
+/// # Security
+/// - Requires root privileges
+/// - Use with caution as this affects system-wide entropy estimation
 pub fn clear_entropy_count() -> Result<(), Error> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -161,9 +254,24 @@ pub fn clear_entropy_count() -> Result<(), Error> {
     }
 }
 
+/// Clears the kernel's entropy pool and associated counters.
+///
+/// This function completely clears both the entropy pool and its estimation.
+/// This is a more drastic operation than `clear_entropy_count()`.
+///
+/// # Returns
+/// - `Ok(())` - If the pool was successfully cleared
+/// - `Err` - If there's an error accessing the kernel or insufficient permissions
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if not running with root privileges
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if the ioctl call to clear the pool fails
+/// - Returns error if no more file descriptors are available
+///
+/// # Security
+/// - Requires root privileges
+/// - Use with extreme caution as this affects system-wide randomness generation
 pub fn clear_pool() -> Result<(), Error> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -177,9 +285,22 @@ pub fn clear_pool() -> Result<(), Error> {
     }
 }
 
+/// Forces the kernel's CRNG (Cryptographic Random Number Generator) to reseed.
+///
+/// This function triggers an immediate reseed of the CRNG from the entropy pool.
+///
+/// # Returns
+/// - `Ok(())` - If the CRNG was successfully reseeded
+/// - `Err` - If there's an error accessing the kernel or insufficient permissions
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if not running with root privileges
+/// - Returns error if unable to open `/dev/random`
+/// - Returns error if the ioctl call to reseed fails
+/// - Returns error if no more file descriptors are available
+///
+/// # Security
+/// - Requires root privileges
 pub fn force_kernel_crng_reseed() -> Result<(), Error> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
@@ -193,9 +314,28 @@ pub fn force_kernel_crng_reseed() -> Result<(), Error> {
     }
 }
 
+/// Reads the system's boot ID from `/proc/sys/kernel/random/boot_id`.
+///
+/// The boot ID is a unique identifier that changes each time the system boots.
+///
+/// # Returns
+/// - `Ok(String)` - The boot ID string
+/// - `Err` - If there's an error reading the boot ID
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/boot_id`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// let boot_id = proc_boot_id()?;
+/// println!("System boot ID: {}", boot_id);
+/// # Ok(())
+/// # }
+/// ```
 pub fn proc_boot_id() -> Result<String, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/boot_id")?;
     let mut boot_id = String::new();
@@ -203,9 +343,29 @@ pub fn proc_boot_id() -> Result<String, Error> {
     Ok(boot_id)
 }
 
+/// Reads the current available entropy from `/proc/sys/kernel/random/entropy_avail`.
+///
+/// This value represents the kernel's estimation of available entropy in bits.
+///
+/// # Returns
+/// - `Ok(u32)` - The number of bits of available entropy
+/// - `Err` - If there's an error reading the entropy value
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/entropy_avail`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+/// - Returns error if the content cannot be parsed as a u32
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// let available_entropy = proc_entropy_avail()?;
+/// println!("Available entropy: {} bits", available_entropy);
+/// # Ok(())
+/// # }
+/// ```
 pub fn proc_entropy_avail() -> Result<u32, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/entropy_avail")?;
     let mut entropy_avail = String::new();
@@ -213,9 +373,19 @@ pub fn proc_entropy_avail() -> Result<u32, Error> {
     Ok(entropy_avail.trim().parse::<u32>()?)
 }
 
+/// Reads the entropy pool size from `/proc/sys/kernel/random/poolsize`.
+///
+/// Returns the size of the kernel's entropy pool in bits.
+///
+/// # Returns
+/// - `Ok(u32)` - The size of the entropy pool in bits
+/// - `Err` - If there's an error reading the pool size
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/poolsize`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+/// - Returns error if the content cannot be parsed as a u32
 pub fn proc_poolsize() -> Result<u32, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/poolsize")?;
     let mut poolsize = String::new();
@@ -223,9 +393,28 @@ pub fn proc_poolsize() -> Result<u32, Error> {
     Ok(poolsize.trim().parse::<u32>()?)
 }
 
+/// Generates a new UUID using the kernel's random number generator.
+///
+/// Reads a new UUID from `/proc/sys/kernel/random/uuid`.
+///
+/// # Returns
+/// - `Ok(String)` - A new random UUID string
+/// - `Err` - If there's an error generating or reading the UUID
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/uuid`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+///
+/// # Example
+/// ```no_run
+/// # use anyhow::Result;
+/// # fn main() -> Result<()> {
+/// let uuid = proc_uuid()?;
+/// println!("Generated UUID: {}", uuid);
+/// # Ok(())
+/// # }
+/// ```
 pub fn proc_uuid() -> Result<String, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/uuid")?;
     let mut uuid = String::new();
@@ -233,9 +422,20 @@ pub fn proc_uuid() -> Result<String, Error> {
     Ok(uuid.trim().to_string())
 }
 
+/// Reads the minimum reseed time for /dev/urandom.
+///
+/// Returns the minimum number of seconds between automatic reseeding
+/// of the urandom pool from the entropy pool.
+///
+/// # Returns
+/// - `Ok(u32)` - The minimum reseed time in seconds
+/// - `Err` - If there's an error reading the value
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/urandom_min_reseed_secs`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+/// - Returns error if the content cannot be parsed as a u32
 pub fn proc_urandom_min_reseed_secs() -> Result<u32, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/urandom_min_reseed_secs")?;
     let mut min_reseed_secs = String::new();
@@ -243,9 +443,19 @@ pub fn proc_urandom_min_reseed_secs() -> Result<u32, Error> {
     Ok(min_reseed_secs.trim().parse::<u32>()?)
 }
 
+/// Reads the `write_wakeup_threshold` from `/proc/sys/kernel/random/write_wakeup_threshold`.
+///
+/// This value determines the threshold at which writers to /dev/random are woken up.
+///
+/// # Returns
+/// - `Ok(u32)` - The current write wakeup threshold
+/// - `Err` - If there's an error reading the threshold
 ///
 /// # Errors
-/// - access to kernel fails or no more fds available
+/// - Returns error if unable to open `/proc/sys/kernel/random/write_wakeup_threshold`
+/// - Returns error if unable to read from the file
+/// - Returns error if the file content is not valid UTF-8
+/// - Returns error if the content cannot be parsed as a u32
 pub fn proc_write_wakeup_threshold() -> Result<u32, Error> {
     let mut proc_file = File::open("/proc/sys/kernel/random/write_wakeup_threshold")?;
     let mut write_wakeup_threshold = String::new();
@@ -256,7 +466,7 @@ pub fn proc_write_wakeup_threshold() -> Result<u32, Error> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        add_randomness_to_kernel, add_to_ent_cnt, clear_entropy_count, clear_pool,
+        MAX_BUFFER_SIZE, add_randomness_to_kernel, add_to_ent_cnt, clear_entropy_count, clear_pool,
         force_kernel_crng_reseed, get_ent_cnt, proc_boot_id, proc_entropy_avail, proc_poolsize,
         proc_urandom_min_reseed_secs, proc_uuid, proc_write_wakeup_threshold,
     };
@@ -269,32 +479,77 @@ mod tests {
 
     #[test]
     fn test_add_to_entropy_count() {
-        if Uid::effective().is_root() {
+        if !Uid::effective().is_root() {
+            println!("Skipping test: requires root privileges");
+            return;
+        }
+
+        assert!(
+            add_to_ent_cnt(32).is_ok(),
+            "failed to add to CRNG entropy count"
+        );
+    }
+
+    #[test]
+    fn test_add_randomness_multiple_buffer_sizes() {
+        if !Uid::effective().is_root() {
+            println!("Skipping test: requires root privileges");
+            return;
+        }
+
+        // Test different buffer sizes
+        let test_sizes = [
+            1,               // Minimum size
+            64,              // Small buffer
+            512,             // Medium buffer
+            1024,            // 1KB
+            MAX_BUFFER_SIZE, // Maximum allowed size
+        ];
+
+        for size in test_sizes {
+            let buffer = vec![0x55; size]; // Fill with a test pattern
+            let entropy_bits = u32::try_from(size * 8).unwrap(); // Claim maximum possible entropy
+
+            let result = add_randomness_to_kernel(&buffer, entropy_bits);
             assert!(
-                add_to_ent_cnt(32).is_ok(),
-                "failed to add to CRNG entropy count"
+                result.is_ok(),
+                "Failed to add randomness with buffer size {size}: {result:?}"
             );
         }
+
+        // Test error case: buffer larger than MAX_BUFFER_SIZE
+        let oversized_buffer = vec![0x55; MAX_BUFFER_SIZE + 1];
+        let result = add_randomness_to_kernel(&oversized_buffer, 8);
+        assert!(
+            result.is_err(),
+            "Expected error for buffer size larger than MAX_BUFFER_SIZE"
+        );
     }
 
     #[test]
     fn test_add_entropy() {
-        if Uid::effective().is_root() {
-            assert!(
-                add_randomness_to_kernel(&[0u8; 32], 256).is_ok(),
-                "failed to add randomness to kernel"
-            );
+        if !Uid::effective().is_root() {
+            println!("Skipping test: requires root privileges");
+            return;
         }
+
+        assert!(
+            add_randomness_to_kernel(&[0u8; 32], 256).is_ok(),
+            "failed to add randomness to kernel"
+        );
     }
 
     #[test]
     fn test_clear_entropy_count() {
-        if Uid::effective().is_root() {
-            assert!(
-                clear_entropy_count().is_ok(),
-                "failed to clear CRNG entropy count"
-            );
+        if !Uid::effective().is_root() {
+            println!("Skipping test: requires root privileges");
+            return;
         }
+
+        assert!(
+            clear_entropy_count().is_ok(),
+            "failed to clear CRNG entropy count"
+        );
     }
 
     #[test]
@@ -306,9 +561,12 @@ mod tests {
 
     #[test]
     fn test_reseed_crng() {
-        if Uid::effective().is_root() {
-            assert!(force_kernel_crng_reseed().is_ok(), "failed to reseed CRNG");
+        if !Uid::effective().is_root() {
+            println!("Skipping test: requires root privileges");
+            return;
         }
+
+        assert!(force_kernel_crng_reseed().is_ok(), "failed to reseed CRNG");
     }
 
     #[test]
