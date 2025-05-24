@@ -1,1 +1,1 @@
-This crate implements Rust wrappers for Linux Kernel CRNG ioctls.
+This crate implements Rust wrappers for Linux Kernel CRNG ioctls and proc files.
