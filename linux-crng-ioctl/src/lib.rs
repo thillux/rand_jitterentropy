@@ -1,6 +1,7 @@
 use anyhow::{Error, Result, anyhow};
 use log::{debug, error};
 use nix::{ioctl_none, ioctl_read, ioctl_write_ptr};
+use std::io::Read;
 use std::{fs::File, os::fd::AsRawFd};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -109,7 +110,9 @@ pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
     }
 
     if entropy.len() > MAX_BUFFER_SIZE {
-        return Err(anyhow!("This implementation currently can write up to {MAX_BUFFER_SIZE} Byte to kernel CRNG input pool"));
+        return Err(anyhow!(
+            "This implementation currently can write up to {MAX_BUFFER_SIZE} Byte to kernel CRNG input pool"
+        ));
     }
 
     debug!(
@@ -190,11 +193,72 @@ pub fn force_kernel_crng_reseed() -> Result<(), Error> {
     }
 }
 
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_boot_id() -> Result<String, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/boot_id")?;
+    let mut boot_id = String::new();
+    proc_file.read_to_string(&mut boot_id)?;
+    Ok(boot_id)
+}
+
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_entropy_avail() -> Result<u32, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/entropy_avail")?;
+    let mut entropy_avail = String::new();
+    proc_file.read_to_string(&mut entropy_avail)?;
+    Ok(entropy_avail.trim().parse::<u32>()?)
+}
+
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_poolsize() -> Result<u32, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/poolsize")?;
+    let mut poolsize = String::new();
+    proc_file.read_to_string(&mut poolsize)?;
+    Ok(poolsize.trim().parse::<u32>()?)
+}
+
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_uuid() -> Result<String, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/uuid")?;
+    let mut uuid = String::new();
+    proc_file.read_to_string(&mut uuid)?;
+    Ok(uuid.trim().to_string())
+}
+
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_urandom_min_reseed_secs() -> Result<u32, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/urandom_min_reseed_secs")?;
+    let mut min_reseed_secs = String::new();
+    proc_file.read_to_string(&mut min_reseed_secs)?;
+    Ok(min_reseed_secs.trim().parse::<u32>()?)
+}
+
+///
+/// # Errors
+/// - access to kernel fails or no more fds available
+pub fn proc_write_wakeup_threshold() -> Result<u32, Error> {
+    let mut proc_file = File::open("/proc/sys/kernel/random/write_wakeup_threshold")?;
+    let mut write_wakeup_threshold = String::new();
+    proc_file.read_to_string(&mut write_wakeup_threshold)?;
+    Ok(write_wakeup_threshold.trim().parse::<u32>()?)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         add_randomness_to_kernel, add_to_ent_cnt, clear_entropy_count, clear_pool,
-        force_kernel_crng_reseed, get_ent_cnt,
+        force_kernel_crng_reseed, get_ent_cnt, proc_boot_id, proc_entropy_avail, proc_poolsize,
+        proc_urandom_min_reseed_secs, proc_uuid, proc_write_wakeup_threshold,
     };
     use nix::unistd::Uid;
 
@@ -245,5 +309,35 @@ mod tests {
         if Uid::effective().is_root() {
             assert!(force_kernel_crng_reseed().is_ok(), "failed to reseed CRNG");
         }
+    }
+
+    #[test]
+    fn test_proc_boot_id() {
+        assert!(proc_boot_id().is_ok());
+    }
+
+    #[test]
+    fn test_proc_entropy_avail() {
+        assert!(proc_entropy_avail().is_ok());
+    }
+
+    #[test]
+    fn test_proc_poolsize() {
+        assert!(proc_poolsize().is_ok());
+    }
+
+    #[test]
+    fn test_proc_urandom_min_reseed_secs() {
+        assert!(proc_urandom_min_reseed_secs().is_ok());
+    }
+
+    #[test]
+    fn test_proc_uuid() {
+        assert!(proc_uuid().is_ok());
+    }
+
+    #[test]
+    fn test_write_wakeup_threshold() {
+        assert!(proc_write_wakeup_threshold().is_ok());
     }
 }
