@@ -1,7 +1,7 @@
+use crate::ioctl_defs;
 use anyhow::{Error, Result, anyhow};
 use log::{debug, error};
 use std::{fs::File, os::fd::AsRawFd};
-use crate::ioctl_defs;
 
 /// Gets the current entropy count from the kernel's random number generator.
 ///
@@ -130,7 +130,8 @@ pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
 
     if entropy.len() > ioctl_defs::MAX_BUFFER_SIZE {
         return Err(anyhow!(
-            "This implementation currently can write up to {} Byte to kernel CRNG input pool", ioctl_defs::MAX_BUFFER_SIZE
+            "This implementation currently can write up to {} Byte to kernel CRNG input pool",
+            ioctl_defs::MAX_BUFFER_SIZE
         ));
     }
 
@@ -257,11 +258,11 @@ pub fn force_kernel_crng_reseed() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ioctl_defs;
     use crate::ioctl::{
         add_randomness_to_kernel, add_to_ent_cnt, clear_entropy_count, clear_pool,
-        force_kernel_crng_reseed, get_ent_cnt
+        force_kernel_crng_reseed, get_ent_cnt,
     };
+    use crate::ioctl_defs;
     use nix::unistd::Uid;
 
     #[test]
@@ -291,10 +292,10 @@ mod tests {
 
         // Test different buffer sizes
         let test_sizes = [
-            1,               // Minimum size
-            64,              // Small buffer
-            512,             // Medium buffer
-            1024,            // 1KB
+            1,                           // Minimum size
+            64,                          // Small buffer
+            512,                         // Medium buffer
+            1024,                        // 1KB
             ioctl_defs::MAX_BUFFER_SIZE, // Maximum allowed size
         ];
 
@@ -314,7 +315,11 @@ mod tests {
         let result = add_randomness_to_kernel(&oversized_buffer, 8);
         assert!(
             result.is_err(),
-            "{}", format!("Expected error for buffer size larger than {}", ioctl_defs::MAX_BUFFER_SIZE)
+            "{}",
+            format!(
+                "Expected error for buffer size larger than {}",
+                ioctl_defs::MAX_BUFFER_SIZE
+            )
         );
     }
 

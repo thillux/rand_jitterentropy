@@ -1,8 +1,8 @@
 use clap::Parser;
 use linux_crng_ioctl::ioctl::{add_randomness_to_kernel, force_kernel_crng_reseed};
-use log::{debug, info};
-use rand_jitterentropy::RandJitterEntropy;
+use log::{debug, error, info};
 use rand::{RngCore, TryRngCore};
+use rand_jitterentropy::RandJitterEntropy;
 use sha3::{Digest, Sha3_512};
 use std::{process::ExitCode, time::Duration};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -47,9 +47,16 @@ fn main() -> ExitCode {
 
     let mut state = RandomState::new();
 
-    let mut rngs : Vec<Box<dyn RngCore>> = vec![
-        Box::new(RandJitterEntropy::new().unwrap().unwrap_err()),
-    ];
+    let mut rngs: Vec<Box<dyn RngCore>> = vec![Box::new(
+        match RandJitterEntropy::new() {
+            Ok(rng) => rng,
+            Err(e) => {
+                error!("Failed to create jitterentropy instance: {}", e);
+                return ExitCode::FAILURE;
+            }
+        }
+        .unwrap_err(),
+    )];
 
     loop {
         let mut output = RandomState::new();
@@ -71,7 +78,7 @@ fn main() -> ExitCode {
             hasher_state.update(output.0);
             hasher_output.update(output.0);
         }
-        
+
         let output_out = hasher_output.finalize();
         let state_out = hasher_state.finalize();
 

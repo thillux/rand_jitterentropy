@@ -1,6 +1,6 @@
-use std::io::Read;
-use std::fs::File;
 use anyhow::Error;
+use std::fs::File;
+use std::io::Read;
 
 /// Reads the system's boot ID from `/proc/sys/kernel/random/boot_id`.
 ///
