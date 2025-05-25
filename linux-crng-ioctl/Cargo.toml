@@ -10,13 +10,13 @@ keywords = ["rand", "random", "Linux", "rng"]
 categories = ["cryptography"]
 
 [dependencies]
-anyhow = { version = "1.0.98" }
-log = { version = "0.4.27" }
-nix = { version = "0.30.1", features = ["ioctl"] }
-zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
+anyhow = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true, features = ["ioctl"] }
+zeroize = { workspace = true }
 
 [dev-dependencies]
-nix = { version = "0.30.1", features = ["ioctl", "user"] }
+nix = { workspace = true, features = ["ioctl", "user"] }
 
 [lints]
 workspace = true

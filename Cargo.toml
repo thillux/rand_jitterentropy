@@ -3,7 +3,8 @@ resolver = "2"
 members = [
     "linux-crng-ioctl",
     "rand_jitterentropy",
-    "libjitterentropy-sys"
+    "libjitterentropy-sys",
+    "rngd"
 ]
 
 [workspace.package]
@@ -12,8 +13,16 @@ authors = ["Markus Theil <theil.markus@gmail.com>"]
 edition = "2024"
 
 [workspace.dependencies]
-libjitterentropy-sys = { path = "libjitterentropy-sys", version = "0.1.4" }
+anyhow = { version = "1.0.98" }
+libjitterentropy-sys = { path = "libjitterentropy-sys" }
+linux-crng-ioctl = { path = "linux-crng-ioctl" }
+log = { version = "0.4.27" }
+nix = { version = "0.30.1" }
+rand = "0.9.1"
 rand_core = "0.9.3"
+rand_jitterentropy = { path = "rand_jitterentropy" }
+sha3 = { version = "0.11.0-pre.5", features = ["std", "zeroize"] }
+zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = 0 }

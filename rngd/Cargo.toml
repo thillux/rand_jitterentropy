@@ -1,0 +1,33 @@
+[package]
+name = "jitter-rngd"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license = "MIT"
+repository = "https://github.com/thillux/rand_jitterentropy"
+description = "provides toy rngd implementation for rand_jitterentropy development"
+keywords = ["rand", "random", "jitterentropy", "rng"]
+categories = ["cryptography"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.5.38", features = ["derive"] }
+env_logger = "0.11.8"
+linux-crng-ioctl = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true, features = ["event", "signal", "ioctl"] }
+rand = { workspace = true }
+rand_jitterentropy = { workspace = true }
+sha3 = { workspace = true }
+syslog = { version = "7.0.0" }
+zeroize = { workspace = true }
+
+[lints.clippy]
+all = { level = "deny", priority = 0 }
+pedantic = { level = "deny", priority = 0 }
+cargo = { level = "deny", priority = 0 }
+cargo-common-metadata = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }
+missing_safety_doc = { level = "allow", priority = 1 }
+missing_errors_doc = { level = "allow", priority = 1 }
+missing_panics_doc = { level = "allow", priority = 1 }
