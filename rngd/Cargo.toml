@@ -11,7 +11,7 @@ categories = ["cryptography"]
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { version = "4.5.38", features = ["derive"] }
+clap = { version = "4.5.48", features = ["derive"] }
 env_logger = "0.11.8"
 linux-crng-ioctl = { workspace = true }
 log = { workspace = true }

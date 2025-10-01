@@ -196,7 +196,10 @@ impl RandJitterEntropy {
             .lock()
             .map_err(|_| JitterEntropyError::ProgErr)?;
 
-        let osr: std::os::raw::c_uint = 1;
+        let osr: std::os::raw::c_uint = 3;
+        #[cfg(feature = "ntg1")]
+        let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS | libjitterentropy_sys::jitterentropy::JENT_NTG1;
+        #[cfg(not(feature = "ntg1"))]
         let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS;
 
         let ret = if *guard == 0 {

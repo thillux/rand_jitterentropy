@@ -10,5 +10,5 @@ keywords = ["rand", "random", "jitterentropy", "rng"]
 categories = ["external-ffi-bindings"]
 
 [build-dependencies]
-bindgen = { version = "0.71.1", features = ["runtime"] }
+bindgen = { version = "0.72.1", features = ["runtime"] }
 pkg-config = "0.3.32"
