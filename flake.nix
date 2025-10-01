@@ -49,7 +49,13 @@
       buildInputs = with pkgs; [
         jitterentropy_patched
       ];
-      nativeBuildInputs = with pkgs; [ pkg-config rustPlatform.bindgenHook cargo rustc ];
+      
+      nativeBuildInputs = with pkgs; [
+        pkg-config
+        rustPlatform.bindgenHook
+        cargo
+        rustc
+      ];
     in
     {
       packages.x86_64-linux = {

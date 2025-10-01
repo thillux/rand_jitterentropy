@@ -346,7 +346,7 @@ dependencies = [
 
 [[package]]
 name = "jitter-rngd"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -378,7 +378,7 @@ checksum = "58f929b4d672ea937a23a1ab494143d968337a5f47e56d0815df1e0890ddf174"
 
 [[package]]
 name = "libjitterentropy-sys"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "bindgen",
  "pkg-config",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "linux-crng-ioctl"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "log",
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "rand_jitterentropy"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "libjitterentropy-sys",
  "rand_core",

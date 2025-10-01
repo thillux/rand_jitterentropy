@@ -3,8 +3,8 @@ use std::{env::var, path::PathBuf};
 use bindgen::Builder;
 
 fn main() {
-    /* use this for linking with OpenSSL or AWS-LC */
-    // pkg_config::Config::new().probe("libcrypto").unwrap();
+    #[cfg(feature = "openssl")]
+    pkg_config::Config::new().probe("libcrypto").unwrap();
 
     let bindings = Builder::default()
         .header("jitterentropy-include.h")
