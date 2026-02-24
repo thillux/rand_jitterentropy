@@ -3,8 +3,10 @@ use std::{env::var, path::PathBuf};
 use bindgen::Builder;
 
 fn main() {
+    let statik = cfg!(feature = "static");
+
     #[cfg(feature = "openssl")]
-    pkg_config::Config::new().probe("libcrypto").unwrap();
+    pkg_config::Config::new().statik(statik).probe("libcrypto").unwrap();
 
     let bindings = Builder::default()
         .header("jitterentropy-include.h")
@@ -16,5 +18,20 @@ fn main() {
         .write_to_file(&bindings_path)
         .expect("Could not write bindings to file");
 
-    println!("cargo:rustc-link-lib=jitterentropy");
+    let found_jitterentropy = pkg_config::Config::new()
+        .atleast_version("3.7")
+        .statik(statik)
+        .probe("jitterentropy");
+
+    if found_jitterentropy.is_err() {
+        let lib_path = std::env::var("JITTERENTROPY_LIB_DIR")
+            .unwrap_or_else(|_| "/usr/lib".to_string());
+
+        println!("cargo:rustc-link-search=native={lib_path}");
+        if statik {
+            println!("cargo:rustc-link-lib=static=jitterentropy");
+        } else {
+            println!("cargo:rustc-link-lib=jitterentropy");
+        }
+    }
 }

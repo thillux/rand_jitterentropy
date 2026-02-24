@@ -11,16 +11,20 @@ categories = ["cryptography"]
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { version = "4.5.48", features = ["derive"] }
-env_logger = "0.11.8"
+clap = { workspace = true }
+env_logger = { workspace = true }
 linux-crng-ioctl = { workspace = true }
 log = { workspace = true }
 nix = { workspace = true, features = ["event", "signal", "ioctl"] }
 rand = { workspace = true }
-rand_jitterentropy = { workspace = true }
+rand_jitterentropy = { workspace = true, features = ["openssl", "ntg1", "static"] }
 sha3 = { workspace = true }
-syslog = { version = "7.0.0" }
+syslog = { workspace = true }
 zeroize = { workspace = true }
+
+[build-dependencies]
+bindgen = { workspace = true }
+pkg-config = { workspace = true }
 
 [lints.clippy]
 all = { level = "deny", priority = 0 }

@@ -33,7 +33,7 @@ pub fn get_ent_cnt() -> Result<i32> {
     let fd = random_file.as_raw_fd();
     let mut ent_cnt = 0;
 
-    let ret = unsafe { ioctl_defs::rnd_get_ent_cnt(fd, &mut ent_cnt) };
+    let ret = unsafe { ioctl_defs::rnd_get_ent_cnt(fd, &raw mut ent_cnt) };
     if let Ok(0) = ret {
         Ok(ent_cnt)
     } else {
@@ -76,7 +76,7 @@ pub fn add_to_ent_cnt(ent_cnt: i32) -> Result<()> {
     let random_file = File::create("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
-    let ret = unsafe { ioctl_defs::rnd_add_to_ent_cnt(fd, &ent_cnt) };
+    let ret = unsafe { ioctl_defs::rnd_add_to_ent_cnt(fd, &raw const ent_cnt) };
     if let Ok(0) = ret {
         Ok(())
     } else {

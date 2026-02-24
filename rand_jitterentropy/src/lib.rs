@@ -1,4 +1,4 @@
-use rand_core::TryRngCore;
+use rand_core::TryRng;
 use std::sync::Mutex;
 
 static LIB_MUTEX_UNPRIV: Mutex<u32> = Mutex::new(0u32);
@@ -58,7 +58,7 @@ pub enum JitterEntropyError {
 }
 
 impl JitterEntropyError {
-    /// Converts a C error code to a Result containing JitterEntropyError.
+    /// Converts a C error code to a Result containing `JitterEntropyError`.
     ///
     /// # Arguments
     ///
@@ -196,7 +196,7 @@ impl RandJitterEntropy {
             .lock()
             .map_err(|_| JitterEntropyError::ProgErr)?;
 
-        let osr: std::os::raw::c_uint = 3;
+        let osr: std::os::raw::c_uint = 6;
         #[cfg(feature = "ntg1")]
         let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS | libjitterentropy_sys::jitterentropy::JENT_NTG1;
         #[cfg(not(feature = "ntg1"))]
@@ -230,7 +230,7 @@ impl RandJitterEntropy {
     }
 }
 
-impl TryRngCore for RandJitterEntropy {
+impl TryRng for RandJitterEntropy {
     type Error = JitterEntropyError;
 
     /// Generates a random u32 value.
@@ -268,7 +268,7 @@ impl TryRngCore for RandJitterEntropy {
     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
         let ret = unsafe {
             libjitterentropy_sys::jitterentropy::jent_read_entropy_safe(
-                &mut self.rand_data,
+                &raw mut self.rand_data,
                 dst.as_mut_ptr().cast(),
                 dst.len(),
             )

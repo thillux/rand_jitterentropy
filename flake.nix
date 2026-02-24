@@ -1,11 +1,23 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    gitignore = {
+      url = "github:hercules-ci/gitignore.nix";
+      # Use the same nixpkgs
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      gitignore,
+      ...
+    }:
     let
-      pkgs = nixpkgs.legacyPackages.x86_64-linux.pkgs;
+      pkgsDyn = nixpkgs.legacyPackages.x86_64-linux.pkgs;
+      pkgs = nixpkgs.legacyPackages.x86_64-linux.pkgsStatic;
 
       inherit (pkgs) lib stdenv;
 
@@ -13,34 +25,30 @@
         _: prevAttrs: {
           version = "3.7.0";
           src = pkgs.fetchFromGitHub {
-            owner = "thillux";
+            owner = "smuellerDD";
             repo = "jitterentropy-library";
-            rev = "ntg1-2025-10-01";
-            hash = "sha256-mgjJf82H0q8XoHSv7l+1kOd6o3i6VWoZ7wOW8c+tSOM=";
+            rev = "e7bf6282407d1ea52815cdd7746b4c086c0b19af";
+            hash = "sha256-PC8CQBRjJKWWfSLuEWyl09yjxZ9XS2ZGI7OMSFPwZ48=";
           };
 
-          outputs = [
-            "bin"
-            "out"
-            "dev"
-            "lib"
-          ];
+          patches = [ ];
 
           # for secure memory
           propagatedBuildInputs = with pkgs; [
             openssl
           ];
-          postPatch = ''
-            sed -i '/add_subdirectory(tests\/gcd)/d' CMakeLists.txt
-          '';
+
           # better find openssl
           nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgs.pkg-config ];
           # enables secure memory mode
           cmakeFlags = [
+            "-DINTERNAL_TIMER=OFF"
             "-DEXTERNAL_CRYPTO=OPENSSL"
-          ] ++ lib.optionals stdenv.hostPlatform.isStatic [
+          ]
+          ++ lib.optionals stdenv.hostPlatform.isStatic [
             "-DBUILD_SHARED_LIBS=OFF"
-          ] ++ lib.optionals (!stdenv.hostPlatform.isStatic) [
+          ]
+          ++ lib.optionals (!stdenv.hostPlatform.isStatic) [
             "-DBUILD_SHARED_LIBS=ON"
           ];
         }
@@ -48,23 +56,37 @@
 
       buildInputs = with pkgs; [
         jitterentropy_patched
+        openssl
       ];
-      
+
       nativeBuildInputs = with pkgs; [
         pkg-config
-        rustPlatform.bindgenHook
-        cargo
-        rustc
+        pkgsDyn.rustPlatform.bindgenHook
       ];
     in
     {
+      formatter.x86_64-linux = pkgsDyn.nixfmt-tree;
+
       packages.x86_64-linux = {
         inherit jitterentropy_patched;
+        rngd = pkgs.callPackage ./build.nix {
+          jitterentropy = jitterentropy_patched;
+          inherit buildInputs nativeBuildInputs;
+          inherit (gitignore.lib) gitignoreSource;
+        };
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
-        inherit buildInputs;
-        inherit nativeBuildInputs;
+        JITTERENTROPY_LIB_DIR = "${pkgs.jitterentropy}/lib";
+
+        buildInputs = buildInputs ++ [
+          pkgs.pkg-config
+        ];
+        nativeBuildInputs = nativeBuildInputs ++ [
+          pkgs.rustc
+          pkgs.cargo
+          pkgs.clippy
+        ];
       };
     };
 }
