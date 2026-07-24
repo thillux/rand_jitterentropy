@@ -1,6 +1,12 @@
 use rand_core::TryRng;
 use std::sync::Mutex;
 
+/// Flags which can be passed to [`RandJitterEntropy::with_osr_and_flags`].
+pub use libjitterentropy_sys::jitterentropy::{
+    JENT_DISABLE_INTERNAL_TIMER, JENT_DISABLE_MEMORY_ACCESS, JENT_FORCE_FIPS,
+    JENT_FORCE_INTERNAL_TIMER, JENT_NTG1,
+};
+
 static LIB_MUTEX_UNPRIV: Mutex<u32> = Mutex::new(0u32);
 
 pub struct RandJitterEntropy {
@@ -165,6 +171,9 @@ impl From<i32> for JitterEntropyError {
 }
 
 impl RandJitterEntropy {
+    /// Oversampling rate used by [`Self::new`].
+    pub const DEFAULT_OSR: u32 = 6;
+
     /// Create new handle for jitterentropy based True RNG.
     ///
     /// # Errors
@@ -192,31 +201,44 @@ impl RandJitterEntropy {
     /// - `LagPermanentFailure` - Permanent LAG failure
     /// - `ProgErr` - Programming or internal error
     pub fn new() -> Result<Self, JitterEntropyError> {
+        #[cfg(feature = "ntg1")]
+        let flags = JENT_FORCE_FIPS | JENT_NTG1;
+        #[cfg(not(feature = "ntg1"))]
+        let flags = JENT_FORCE_FIPS;
+
+        Self::with_osr_and_flags(Self::DEFAULT_OSR, flags)
+    }
+
+    /// Create new handle for jitterentropy based True RNG with a custom
+    /// oversampling rate and custom flags.
+    ///
+    /// # Arguments
+    ///
+    /// * `osr` - Oversampling rate; the library rejects values below its
+    ///   minimum (`JENT_MIN_OSR`, currently 3). [`Self::new`] uses
+    ///   [`Self::DEFAULT_OSR`].
+    /// * `flags` - Bitwise-or of `JENT_*` flags re-exported by this crate,
+    ///   e.g. [`JENT_FORCE_FIPS`] or [`JENT_NTG1`].
+    ///
+    /// Note: the library-global initialization and its self tests
+    /// (`jent_entropy_init_ex`) run with the `osr` and `flags` of the first
+    /// live instance; later instances only pass them to their own entropy
+    /// collector.
+    ///
+    /// # Errors
+    ///
+    /// See [`Self::new`].
+    pub fn with_osr_and_flags(osr: u32, flags: u32) -> Result<Self, JitterEntropyError> {
         let mut guard = LIB_MUTEX_UNPRIV
             .lock()
             .map_err(|_| JitterEntropyError::ProgErr)?;
 
-        let osr: std::os::raw::c_uint = 6;
-        #[cfg(feature = "ntg1")]
-        let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS | libjitterentropy_sys::jitterentropy::JENT_NTG1;
-        #[cfg(not(feature = "ntg1"))]
-        let flags: std::os::raw::c_uint = libjitterentropy_sys::jitterentropy::JENT_FORCE_FIPS;
-
-        let ret = if *guard == 0 {
+        if *guard == 0 {
             unsafe {
                 JitterEntropyError::from_c_code(
                     libjitterentropy_sys::jitterentropy::jent_entropy_init_ex(osr, flags),
                 )?;
-            };
-            true
-        } else {
-            true
-        };
-
-        if ret {
-            *guard += 1;
-        } else {
-            return Err(JitterEntropyError::ProgErr);
+            }
         }
 
         let rand_data = unsafe {
@@ -225,6 +247,9 @@ impl RandJitterEntropy {
         if rand_data.is_null() {
             Err(JitterEntropyError::NullCollector)
         } else {
+            // count live instances only after every fallible step succeeded,
+            // so Drop's decrement always balances this increment
+            *guard += 1;
             Ok(RandJitterEntropy { rand_data })
         }
     }
@@ -299,7 +324,11 @@ impl Drop for RandJitterEntropy {
             libjitterentropy_sys::jitterentropy::jent_entropy_collector_free(self.rand_data);
         }
 
-        let mut guard = LIB_MUTEX_UNPRIV.lock().unwrap();
+        // avoid a double panic if the mutex was poisoned; the counter itself
+        // is still consistent as it is only touched while the lock is held
+        let mut guard = LIB_MUTEX_UNPRIV
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
 
         *guard -= 1;
     }
@@ -411,6 +440,19 @@ mod tests {
             assert!(rng.try_fill_bytes(&mut buffer).is_ok());
             println!("{buffer_size}: {buffer:#04X?}");
         }
+    }
+
+    #[test]
+    fn test_with_osr_and_flags() {
+        let mut rng =
+            RandJitterEntropy::with_osr_and_flags(RandJitterEntropy::DEFAULT_OSR, JENT_FORCE_FIPS)
+                .unwrap();
+        let mut buf = [0u8; 32];
+        assert!(rng.try_fill_bytes(&mut buf).is_ok());
+
+        // higher oversampling rate
+        let mut rng = RandJitterEntropy::with_osr_and_flags(8, JENT_FORCE_FIPS).unwrap();
+        assert!(rng.try_next_u64().is_ok());
     }
 
     #[test]

@@ -8,11 +8,10 @@ repository = "https://github.com/thillux/rand_jitterentropy"
 description = "provides interface to jitterentropy-library (ffi-bindings)"
 keywords = ["rand", "random", "jitterentropy", "rng"]
 categories = ["external-ffi-bindings"]
-links = "crypto"
+links = "jitterentropy"
 
 [features]
 default = []
-openssl = []
 static = []
 
 [build-dependencies]

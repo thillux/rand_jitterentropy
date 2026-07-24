@@ -16,7 +16,6 @@ rand_core = { workspace = true }
 [features]
 default = []
 ntg1 = []
-openssl = ["libjitterentropy-sys/openssl"]
 static = ["libjitterentropy-sys/static"]
 
 [lints]

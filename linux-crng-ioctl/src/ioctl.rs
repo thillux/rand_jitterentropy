@@ -29,7 +29,7 @@ use std::{fs::File, os::fd::AsRawFd};
 /// # }
 /// ```
 pub fn get_ent_cnt() -> Result<i32> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
     let mut ent_cnt = 0;
 
@@ -73,7 +73,7 @@ pub fn get_ent_cnt() -> Result<i32> {
 /// # Security
 /// Requires root privileges to execute successfully.
 pub fn add_to_ent_cnt(ent_cnt: i32) -> Result<()> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
     let ret = unsafe { ioctl_defs::rnd_add_to_ent_cnt(fd, &raw const ent_cnt) };
@@ -121,7 +121,7 @@ pub fn add_to_ent_cnt(ent_cnt: i32) -> Result<()> {
 /// - Requires root privileges
 /// - Be careful not to overestimate entropy to maintain system security
 pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
     if usize::try_from(ent_bits)? > entropy.len() * 8 {
@@ -137,7 +137,8 @@ pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
 
     debug!(
         "Write {} Byte to /dev/random, accounted with {} Bit entropy",
-        64, ent_bits
+        entropy.len(),
+        ent_bits
     );
 
     let mut pool_info = ioctl_defs::KernelRandPoolInfo {
@@ -184,7 +185,7 @@ pub fn add_randomness_to_kernel(entropy: &[u8], ent_bits: u32) -> Result<()> {
 /// - Requires root privileges
 /// - Use with caution as this affects system-wide entropy estimation
 pub fn clear_entropy_count() -> Result<(), Error> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
     match unsafe { ioctl_defs::rnd_zap_ent_cnt(fd) } {
@@ -215,7 +216,7 @@ pub fn clear_entropy_count() -> Result<(), Error> {
 /// - Requires root privileges
 /// - Use with extreme caution as this affects system-wide randomness generation
 pub fn clear_pool() -> Result<(), Error> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
     match unsafe { ioctl_defs::rnd_clear_pool(fd) } {
@@ -244,7 +245,7 @@ pub fn clear_pool() -> Result<(), Error> {
 /// # Security
 /// - Requires root privileges
 pub fn force_kernel_crng_reseed() -> Result<(), Error> {
-    let random_file = File::create("/dev/random")?;
+    let random_file = File::open("/dev/random")?;
     let fd = random_file.as_raw_fd();
 
     match unsafe { ioctl_defs::rnd_reseed_crng(fd) } {

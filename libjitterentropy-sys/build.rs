@@ -3,15 +3,18 @@ use std::{env::var, path::PathBuf};
 use bindgen::Builder;
 
 fn main() {
-    let statik = cfg!(feature = "static");
+    println!("cargo:rerun-if-changed=jitterentropy-include.h");
+    println!("cargo:rerun-if-env-changed=JITTERENTROPY_LIB_DIR");
 
-    #[cfg(feature = "openssl")]
-    pkg_config::Config::new().statik(statik).probe("libcrypto").unwrap();
+    let statik = cfg!(feature = "static");
 
     let bindings = Builder::default()
         .header("jitterentropy-include.h")
+        .allowlist_function("jent_.*")
+        .allowlist_type("rand_data")
+        .allowlist_var("JENT_.*")
         .generate()
-        .unwrap();
+        .expect("Could not generate jitterentropy bindings");
     let mut bindings_path = PathBuf::from(var("OUT_DIR").unwrap());
     bindings_path.push("jitterentropy-bindings.rs");
     bindings
@@ -24,8 +27,8 @@ fn main() {
         .probe("jitterentropy");
 
     if found_jitterentropy.is_err() {
-        let lib_path = std::env::var("JITTERENTROPY_LIB_DIR")
-            .unwrap_or_else(|_| "/usr/lib".to_string());
+        let lib_path =
+            std::env::var("JITTERENTROPY_LIB_DIR").unwrap_or_else(|_| "/usr/lib".to_string());
 
         println!("cargo:rustc-link-search=native={lib_path}");
         if statik {

@@ -33,17 +33,8 @@
 
           patches = [ ];
 
-          # for secure memory
-          propagatedBuildInputs = with pkgs; [
-            openssl
-          ];
-
-          # better find openssl
-          nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgs.pkg-config ];
-          # enables secure memory mode
           cmakeFlags = [
             "-DINTERNAL_TIMER=OFF"
-            "-DEXTERNAL_CRYPTO=OPENSSL"
           ]
           ++ lib.optionals stdenv.hostPlatform.isStatic [
             "-DBUILD_SHARED_LIBS=OFF"
@@ -56,7 +47,6 @@
 
       buildInputs = with pkgs; [
         jitterentropy_patched
-        openssl
       ];
 
       nativeBuildInputs = with pkgs; [
