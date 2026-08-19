@@ -67,7 +67,7 @@
       };
 
       devShells.x86_64-linux.default = pkgs.mkShell {
-        JITTERENTROPY_LIB_DIR = "${pkgs.jitterentropy}/lib";
+        JITTERENTROPY_LIB_DIR = "${jitterentropy_patched}/lib";
 
         buildInputs = buildInputs ++ [
           pkgs.pkg-config
