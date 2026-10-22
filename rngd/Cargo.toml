@@ -14,10 +14,15 @@ clap = { workspace = true }
 env_logger = { workspace = true }
 linux-crng-ioctl = { workspace = true }
 log = { workspace = true }
-rand = { workspace = true }
+nix = { workspace = true, features = ["poll", "signal"] }
+rand_core = { workspace = true }
 rand_jitterentropy = { workspace = true, features = ["ntg1", "static"] }
-sha3 = { workspace = true }
 zeroize = { workspace = true }
+
+[features]
+default = []
+# Entropy Gathering Daemon interface on a Unix socket
+egd = []
 
 [lints.clippy]
 all = { level = "deny", priority = 0 }
@@ -28,5 +33,3 @@ cast_precision_loss = { level = "allow", priority = 1 }
 missing_safety_doc = { level = "allow", priority = 1 }
 missing_errors_doc = { level = "allow", priority = 1 }
 missing_panics_doc = { level = "allow", priority = 1 }
-# transitive duplicates (cpufeatures via sha3, hashbrown via clap) are not fixable here
-multiple_crate_versions = { level = "allow", priority = 1 }

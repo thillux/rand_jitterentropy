@@ -83,8 +83,8 @@ configuration the instance runs with.
 
 ## jitter-rngd
 
-`jitter-rngd` reads from the Jitter RNG, mixes the output with its own state
-through SHA3-512 and hands the result to the kernel CRNG. Adding entropy
+`jitter-rngd` reads from the Jitter RNG and hands the output unchanged to the
+kernel CRNG. Adding entropy
 requires `CAP_SYS_ADMIN`.
 
 ```shell
@@ -93,6 +93,19 @@ sudo jitter-rngd --oneshot
 
 # seed every 30 seconds and force a CRNG reseed after each round
 sudo jitter-rngd --seed-interval-s 30 --force-crng-reseed
+
+# NTG.1 mode, then ask the running daemon for its status and a reseed
+sudo jitter-rngd --ntg1 --osr 8 &
+sudo pkill -USR2 jitter-rngd
+sudo pkill -USR1 jitter-rngd
+
+# status only, no root needed
+jitter-rngd --status
+
+# also serve the EGD protocol (built with --features egd)
+sudo jitter-rngd --ntg1 --egd-socket /run/egd-pool
+# or only EGD, without seeding the kernel and without root
+jitter-rngd --ntg1 --egd-socket /tmp/egd-pool --no-kernel
 
 # log level is controlled by env_logger
 RUST_LOG=debug sudo -E jitter-rngd
