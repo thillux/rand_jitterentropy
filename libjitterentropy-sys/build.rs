@@ -12,14 +12,18 @@ use bindgen::{
 
 /// Flags which are plain macros, but do not exist in every supported
 /// jitterentropy version (>= 3.4.0).
-const OPTIONAL_FLAGS: [&str; 2] = ["JENT_CACHE_ALL", "JENT_NTG1"];
+const OPTIONAL_FLAGS: [&str; 3] = ["JENT_CACHE_ALL", "JENT_NTG1", "JENT_FORCE_SECURE_MEM"];
 
 /// Further API which does not exist in every supported jitterentropy version.
-const OPTIONAL_ITEMS: [&str; 3] = [
+const OPTIONAL_ITEMS: [&str; 6] = [
     "jent_status",
     "jent_secure_memory_supported",
     // the version components are only in the header since 3.6.0
     "JENT_MAJVERSION",
+    // since 3.8.0, the accessors are represented by their first one
+    "jent_selftest",
+    "jent_entropy_collector_uuid",
+    "jent_entropy_collector_osr",
 ];
 
 /// Collects the flags whose existence depends on the jitterentropy version,
@@ -69,9 +73,37 @@ fn main() {
 
     let statik = cfg!(feature = "static");
 
+    let found_jitterentropy = pkg_config::Config::new()
+        .atleast_version("3.4.0")
+        .statik(statik)
+        .probe("jitterentropy");
+
+    // bindgen has to parse the header of the library we link against, not
+    // whatever is in the default include path
+    let include_paths = match found_jitterentropy {
+        Ok(library) => library.include_paths,
+        Err(_) => {
+            let lib_path =
+                std::env::var("JITTERENTROPY_LIB_DIR").unwrap_or_else(|_| "/usr/lib".to_string());
+
+            println!("cargo:rustc-link-search=native={lib_path}");
+            if statik {
+                println!("cargo:rustc-link-lib=static=jitterentropy");
+            } else {
+                println!("cargo:rustc-link-lib=jitterentropy");
+            }
+            Vec::new()
+        }
+    };
+
     let collector = FlagCollector::default();
     let bindings = Builder::default()
         .header("jitterentropy-include.h")
+        .clang_args(
+            include_paths
+                .iter()
+                .map(|path| format!("-I{}", path.display())),
+        )
         .allowlist_function("jent_.*")
         .allowlist_type("rand_data")
         .allowlist_type("jent_max_memsize")
@@ -105,21 +137,4 @@ fn main() {
         .filter(|item| generated.contains(item))
         .collect();
     println!("cargo:items={}", items.join(","));
-
-    let found_jitterentropy = pkg_config::Config::new()
-        .atleast_version("3.4.0")
-        .statik(statik)
-        .probe("jitterentropy");
-
-    if found_jitterentropy.is_err() {
-        let lib_path =
-            std::env::var("JITTERENTROPY_LIB_DIR").unwrap_or_else(|_| "/usr/lib".to_string());
-
-        println!("cargo:rustc-link-search=native={lib_path}");
-        if statik {
-            println!("cargo:rustc-link-lib=static=jitterentropy");
-        } else {
-            println!("cargo:rustc-link-lib=jitterentropy");
-        }
-    }
 }

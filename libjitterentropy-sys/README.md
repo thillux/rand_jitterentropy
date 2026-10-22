@@ -17,7 +17,7 @@ to `JITTERENTROPY_LIB_DIR` (`/usr/lib` by default) and links
 | Environment variable | Purpose |
 | --- | --- |
 | `JITTERENTROPY_LIB_DIR` | Directory of `libjitterentropy`, used when `pkg-config` finds nothing |
-| `BINDGEN_EXTRA_CLANG_ARGS` | Extra clang arguments, e.g. `-I` for the headers |
+| `BINDGEN_EXTRA_CLANG_ARGS` | Extra clang arguments, e.g. `-I` for the headers when `pkg-config` finds nothing |
 
 The `static` feature links the library statically.
 
@@ -50,6 +50,9 @@ Which of these exist depends on the jitterentropy version:
 | `JENT_HASHLOOP_1` … `JENT_HASHLOOP_128` | >= 3.7.0 |
 | `jent_status()` | >= 3.7.0 |
 | `jent_secure_memory_supported()` | >= 3.7.0 |
+| `JENT_FORCE_SECURE_MEM` | >= 3.8.0 |
+| `jent_selftest()` | >= 3.8.0 |
+| `jent_entropy_collector_uuid()` and the other `jent_entropy_collector_*()` accessors | >= 3.8.0 |
 
 Dependent crates do not have to guess: the build script reports what it found
 through the `links` metadata.

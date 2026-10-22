@@ -69,6 +69,10 @@ only what the underlying version provides is exported.
 | `JENT_HASHLOOP_1` … `JENT_HASHLOOP_128` | >= 3.7.0 |
 | `RandJitterEntropy::status()` | >= 3.7.0 |
 | `RandJitterEntropy::secure_memory_supported()` | >= 3.7.0 |
+| `JENT_FORCE_SECURE_MEM` | >= 3.8.0 |
+| `RandJitterEntropy::selftest()` | >= 3.8.0 |
+| `RandJitterEntropy::uuid()` | >= 3.8.0 |
+| `osr()`, `flags()`, `memsize()`, `health_failure()`, `reinitializations()`, `read_invocations()`, `bytes_output()`, `hashloops()` | >= 3.8.0 |
 
 Using the `ntg1` feature (AIS 20/31 NTG.1 compliance) with an older library is
 rejected at compile time instead of silently dropping the flag.
@@ -119,10 +123,11 @@ cargo clippy --workspace --all-targets
 
 To build against a different jitterentropy version, point the build at it:
 ```shell
-JITTERENTROPY_LIB_DIR=/path/to/lib \
-BINDGEN_EXTRA_CLANG_ARGS=-I/path/to/include \
+PKG_CONFIG_PATH=/path/to/lib/pkgconfig LD_LIBRARY_PATH=/path/to/lib \
 cargo test --workspace
 ```
+Without a `.pc` file, set `JITTERENTROPY_LIB_DIR=/path/to/lib` and
+`BINDGEN_EXTRA_CLANG_ARGS=-I/path/to/include` instead.
 
 ## License
 

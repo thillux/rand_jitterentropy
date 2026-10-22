@@ -10,9 +10,10 @@ NTG.1 requirements of AIS 20/31 (2024).
 
 jitterentropy >= 3.4.0 is supported. The library is located with `pkg-config`;
 if that fails, the build falls back to the directory in `JITTERENTROPY_LIB_DIR`
-(`/usr/lib` by default) and links `-ljitterentropy`. Its headers have to be
-found by bindgen, use `BINDGEN_EXTRA_CLANG_ARGS=-I/path/to/include` if they are
-in a non-standard location.
+(`/usr/lib` by default) and links `-ljitterentropy`. Without `pkg-config` its
+headers have to be found by bindgen, use
+`BINDGEN_EXTRA_CLANG_ARGS=-I/path/to/include` if they are in a non-standard
+location.
 
 ## Usage
 
@@ -66,10 +67,18 @@ println!("version number: {}", RandJitterEntropy::version());
 let rng = RandJitterEntropy::new()?;
 println!("secure memory: {}", RandJitterEntropy::secure_memory_supported());
 println!("{}", rng.status()?);
+
+// jitterentropy >= 3.8.0
+let mut rng = RandJitterEntropy::new()?;
+rng.selftest()?;
+println!("{} osr {} reads {}", rng.uuid()?, rng.osr(), rng.read_invocations());
 ```
 
 `status()` returns the state of an instance as JSON: library version, health
-test state, runtime environment and the configuration it runs with.
+test state, runtime environment and the configuration it runs with. Since
+3.8.0 the same numbers are available one by one through the accessors, and
+`selftest()` repeats the conditioning known answer tests; a failure stops the
+instance with `SelftestFailed` until a later run passes.
 
 ## Flags
 
@@ -89,6 +98,10 @@ library built against:
 | `JENT_HASHLOOP_1` … `JENT_HASHLOOP_128` | >= 3.7.0 |
 | `RandJitterEntropy::status()` | >= 3.7.0 |
 | `RandJitterEntropy::secure_memory_supported()` | >= 3.7.0 |
+| `JENT_FORCE_SECURE_MEM` | >= 3.8.0 |
+| `RandJitterEntropy::selftest()` | >= 3.8.0 |
+| `RandJitterEntropy::uuid()` | >= 3.8.0 |
+| `osr()`, `flags()`, `memsize()`, `health_failure()`, `reinitializations()`, `read_invocations()`, `bytes_output()`, `hashloops()` | >= 3.8.0 |
 
 ## Features
 

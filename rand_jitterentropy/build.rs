@@ -2,15 +2,19 @@ use std::{env::var, fs, path::PathBuf};
 
 /// Parts of the jitterentropy API which do not exist in every supported
 /// version (>= 3.4.0), see libjitterentropy-sys.
-const OPTIONAL_CFGS: [&str; 4] = [
+const OPTIONAL_CFGS: [&str; 7] = [
     "jent_status",
     "jent_secure_memory_supported",
     "jent_majversion",
     "jent_ntg1",
+    "jent_selftest",
+    "jent_entropy_collector_uuid",
+    "jent_entropy_collector_osr",
 ];
 
 fn main() {
-    // Which JENT_MAX_MEMSIZE_*/JENT_HASHLOOP_*/JENT_CACHE_ALL/JENT_NTG1 flags
+    // Which JENT_MAX_MEMSIZE_*/JENT_HASHLOOP_*/JENT_CACHE_ALL/JENT_NTG1/
+    // JENT_FORCE_SECURE_MEM flags
     // exist depends on the jitterentropy version. libjitterentropy-sys reports
     // the ones it found, re-export exactly those.
     let flags = var("DEP_JITTERENTROPY_FLAGS").unwrap_or_default();
@@ -19,7 +23,7 @@ fn main() {
     } else {
         format!(
             "/// Maximum memory size (`JENT_MAX_MEMSIZE_*`), hash loop count\n\
-             /// (`JENT_HASHLOOP_*`) and cache size flags, which can be passed to\n\
+             /// (`JENT_HASHLOOP_*`), cache size and secure memory flags, which can be passed to\n\
              /// [`RandJitterEntropy::with_osr_and_flags`] as well. Which of them exist\n\
              /// depends on the version of the jitterentropy library built against.\n\
              pub use libjitterentropy_sys::jitterentropy::{{\n    {},\n}};\n",

@@ -1,5 +1,5 @@
 use rand_core::TryRng;
-#[cfg(jent_status)]
+#[cfg(any(jent_status, jent_entropy_collector_uuid))]
 use std::ffi::CStr;
 use std::sync::Mutex;
 
@@ -37,6 +37,7 @@ pub struct RandJitterEntropy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 /// Represents all possible errors that can occur during Jitter RNG operations.
 ///
 /// This enum covers both initialization errors and runtime errors that may occur
@@ -84,6 +85,13 @@ pub enum JitterEntropyError {
     AptPermanentFailure = -7,
     /// LAG permanent failure (unrecoverable)
     LagPermanentFailure = -8,
+    /// RCT with memory failed during runtime
+    RctMemFailed = -9,
+    /// RCT with memory permanent failure (unrecoverable)
+    RctMemPermanentFailure = -10,
+    /// A self test bound to this instance failed, see
+    /// `RandJitterEntropy::selftest`
+    SelftestFailed = -11,
 }
 
 impl JitterEntropyError {
@@ -126,6 +134,9 @@ impl JitterEntropyError {
     /// - `RctPermanentFailure` (-6) - Unrecoverable RCT failure
     /// - `AptPermanentFailure` (-7) - Unrecoverable APT failure
     /// - `LagPermanentFailure` (-8) - Unrecoverable LAG failure
+    /// - `RctMemFailed` (-9) - RCT with memory failure during operation
+    /// - `RctMemPermanentFailure` (-10) - Unrecoverable RCT with memory failure
+    /// - `SelftestFailed` (-11) - Failed self test bound to the instance
     ///
     /// Any other error code will return `Err(ProgErr)`.
     pub fn from_c_code(code: i32) -> Result<(), Self> {
@@ -152,6 +163,9 @@ impl JitterEntropyError {
             -6 => Err(Self::RctPermanentFailure),
             -7 => Err(Self::AptPermanentFailure),
             -8 => Err(Self::LagPermanentFailure),
+            -9 => Err(Self::RctMemFailed),
+            -10 => Err(Self::RctMemPermanentFailure),
+            -11 => Err(Self::SelftestFailed),
             _ => Err(Self::ProgErr), // Unknown errors treated as programming errors
         }
     }
@@ -181,6 +195,9 @@ impl std::fmt::Display for JitterEntropyError {
             Self::RctPermanentFailure => write!(f, "RCT permanent failure"),
             Self::AptPermanentFailure => write!(f, "APT permanent failure"),
             Self::LagPermanentFailure => write!(f, "LAG permanent failure"),
+            Self::RctMemFailed => write!(f, "RCT with memory failed"),
+            Self::RctMemPermanentFailure => write!(f, "RCT with memory permanent failure"),
+            Self::SelftestFailed => write!(f, "Self test bound to the instance failed"),
         }
     }
 }
@@ -222,6 +239,8 @@ impl RandJitterEntropy {
     /// - `RctPermanentFailure` - Permanent RCT failure
     /// - `AptPermanentFailure` - Permanent APT failure
     /// - `LagPermanentFailure` - Permanent LAG failure
+    /// - `RctMemFailed` - Runtime RCT with memory failure
+    /// - `RctMemPermanentFailure` - Permanent RCT with memory failure
     /// - `ProgErr` - Programming or internal error
     pub fn new() -> Result<Self, JitterEntropyError> {
         // the compile_error! above already rejects the ntg1 feature on a
@@ -239,8 +258,9 @@ impl RandJitterEntropy {
     ///
     /// # Arguments
     ///
-    /// * `osr` - Oversampling rate; the library rejects values below its
-    ///   minimum (`JENT_MIN_OSR`, currently 3). [`Self::new`] uses
+    /// * `osr` - Oversampling rate; the library raises values below its
+    ///   minimum (`JENT_MIN_OSR`, currently 3), jitterentropy >= 3.8.0
+    ///   rejects values above `JENT_MAX_OSR` (currently 20) with `ProgErr`. [`Self::new`] uses
     ///   [`Self::DEFAULT_OSR`].
     /// * `flags` - Bitwise-or of `JENT_*` flags re-exported by this crate,
     ///   e.g. [`JENT_FORCE_FIPS`] or `JENT_NTG1`.
@@ -366,6 +386,126 @@ impl RandJitterEntropy {
     pub fn secure_memory_supported() -> bool {
         unsafe { libjitterentropy_sys::jitterentropy::jent_secure_memory_supported() != 0 }
     }
+
+    /// Run the known answer tests of the conditioning component (SHA3-256,
+    /// SHAKE-256, XDRBG-256) again, for long-running processes which must
+    /// repeat them. A failure is bound to this instance: it returns
+    /// `SelftestFailed` on every read until a later run passes.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Hash` if a known answer test failed.
+    #[cfg(jent_selftest)]
+    pub fn selftest(&mut self) -> Result<(), JitterEntropyError> {
+        JitterEntropyError::from_c_code(unsafe {
+            libjitterentropy_sys::jitterentropy::jent_selftest(self.rand_data)
+        })
+    }
+
+    /// UUID of this instance (RFC 9562 version 4, or 8 without a CSPRNG),
+    /// which stays the same across reallocations after a health test failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProgErr` if the library could not provide it.
+    #[cfg(jent_entropy_collector_uuid)]
+    pub fn uuid(&self) -> Result<String, JitterEntropyError> {
+        use libjitterentropy_sys::jitterentropy::JENT_UUID_STRLEN;
+
+        let mut buf = [0u8; JENT_UUID_STRLEN as usize];
+        let ret = unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_uuid(
+                self.rand_data,
+                buf.as_mut_ptr().cast(),
+                buf.len(),
+            )
+        };
+        if ret != 0 {
+            return Err(JitterEntropyError::ProgErr);
+        }
+
+        CStr::from_bytes_until_nul(&buf)
+            .map_err(|_| JitterEntropyError::ProgErr)?
+            .to_str()
+            .map(ToString::to_string)
+            .map_err(|_| JitterEntropyError::ProgErr)
+    }
+
+    /// Oversampling rate in effect, which the library raises on each
+    /// reallocation after a health test failure.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn osr(&self) -> u32 {
+        unsafe { libjitterentropy_sys::jitterentropy::jent_entropy_collector_osr(self.rand_data) }
+    }
+
+    /// `JENT_*` flags in effect, including the ones the library implies.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn flags(&self) -> u32 {
+        unsafe { libjitterentropy_sys::jitterentropy::jent_entropy_collector_flags(self.rand_data) }
+    }
+
+    /// Size of the memory access region in bytes, 0 without one.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn memsize(&self) -> usize {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_memsize(self.rand_data)
+        }
+    }
+
+    /// Standing health test failures as `JENT_*_FAILURE` bits of
+    /// `libjitterentropy_sys`, 0 if none.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn health_failure(&self) -> u32 {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_health_failure(
+                self.rand_data,
+            )
+        }
+    }
+
+    /// Number of reallocations after an intermittent health test failure.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn reinitializations(&self) -> u32 {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_reinitializations(
+                self.rand_data,
+            )
+        }
+    }
+
+    /// Number of successful reads of this instance.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn read_invocations(&self) -> u64 {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_read_invocations(
+                self.rand_data,
+            )
+        }
+    }
+
+    /// Number of bytes this instance delivered.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn bytes_output(&self) -> u64 {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_bytes_output(self.rand_data)
+        }
+    }
+
+    /// Hash loop count per generated block.
+    #[cfg(jent_entropy_collector_osr)]
+    #[must_use]
+    pub fn hashloops(&self) -> u32 {
+        unsafe {
+            libjitterentropy_sys::jitterentropy::jent_entropy_collector_hashloops(self.rand_data)
+        }
+    }
 }
 
 impl TryRng for RandJitterEntropy {
@@ -403,8 +543,11 @@ impl TryRng for RandJitterEntropy {
     /// - `ProgErr` if buffer length conversion fails
     /// - `NullCollector` if the entropy collector was lost on a previous read
     ///   and cannot be allocated again
-    /// - Runtime health test failures (`RctFailed`, `AptFailed`, `LagFailed`)
-    /// - Permanent test failures (`RctPermanentFailure`, `AptPermanentFailure`, `LagPermanentFailure`)
+    /// - Runtime health test failures (`RctFailed`, `AptFailed`, `LagFailed`,
+    ///   `RctMemFailed`)
+    /// - Permanent test failures (`RctPermanentFailure`, `AptPermanentFailure`,
+    ///   `LagPermanentFailure`, `RctMemPermanentFailure`)
+    /// - `SelftestFailed` after a failed [`RandJitterEntropy::selftest`]
     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
         // jitterentropy < 3.7.0 frees the entropy collector before it
         // reallocates it on an intermittent health test failure and leaves a
@@ -490,6 +633,14 @@ mod tests {
             Err(JitterEntropyError::LagPermanentFailure)
         );
         assert_eq!(
+            JitterEntropyError::from_c_code(-10),
+            Err(JitterEntropyError::RctMemPermanentFailure)
+        );
+        assert_eq!(
+            JitterEntropyError::from_c_code(-11),
+            Err(JitterEntropyError::SelftestFailed)
+        );
+        assert_eq!(
             JitterEntropyError::from_c_code(99),
             Err(JitterEntropyError::ProgErr)
         );
@@ -538,6 +689,49 @@ mod tests {
         // no expectation on the value itself, it depends on the build of the
         // jitterentropy library
         let _supported = RandJitterEntropy::secure_memory_supported();
+    }
+
+    #[cfg(jent_selftest)]
+    #[test]
+    fn test_selftest() {
+        let mut rng = RandJitterEntropy::new().unwrap();
+        rng.selftest().unwrap();
+        assert!(rng.try_next_u64().is_ok());
+    }
+
+    #[cfg(jent_entropy_collector_uuid)]
+    #[test]
+    fn test_uuid() {
+        let rng = RandJitterEntropy::new().unwrap();
+        let uuid = rng.uuid().unwrap();
+
+        assert_eq!(uuid.len(), 36);
+        assert_eq!(uuid.matches('-').count(), 4);
+        assert_eq!(uuid, rng.uuid().unwrap());
+        assert_ne!(uuid, RandJitterEntropy::new().unwrap().uuid().unwrap());
+    }
+
+    #[cfg(jent_entropy_collector_osr)]
+    #[test]
+    fn test_accessors() {
+        let mut rng = RandJitterEntropy::with_osr_and_flags(
+            RandJitterEntropy::DEFAULT_OSR,
+            JENT_FORCE_FIPS | JENT_MAX_MEMSIZE_32kB | JENT_HASHLOOP_4,
+        )
+        .unwrap();
+        let mut buf = [0u8; 48];
+
+        assert!(rng.osr() >= RandJitterEntropy::DEFAULT_OSR);
+        assert_eq!(rng.flags() & JENT_FORCE_FIPS, JENT_FORCE_FIPS);
+        assert!(rng.memsize() > 0);
+        assert!(rng.hashloops() > 0);
+        assert_eq!(rng.read_invocations(), 0);
+
+        rng.try_fill_bytes(&mut buf).unwrap();
+        assert_eq!(rng.health_failure(), 0);
+        assert_eq!(rng.read_invocations(), 1);
+        assert_eq!(rng.bytes_output(), 48);
+        let _ = rng.reinitializations();
     }
 
     #[test]
